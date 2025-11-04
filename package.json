@@ -1,0 +1,31 @@
+{
+  "name": "dreamcar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "echo 'Phase 1: data ingest scaffolding in place'",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:studio": "prisma studio",
+    "ingest:cars": "tsx scripts/ingest-cars.ts \"data/Cars (Updated Oct 28, 2025) - Sheet1.csv\""
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.1",
+    "dotenv": "^16.4.5",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.30",
+    "prisma": "^5.19.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "csv-parse": "^5.5.6"
+  }
+}
+

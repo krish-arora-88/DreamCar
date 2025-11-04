@@ -248,6 +248,24 @@ pnpm prisma migrate dev
 pnpm dev
 ```
 
+### Phase 1: Import cars CSV into Postgres
+
+```bash
+# Ensure DATABASE_URL is set in .env.local or environment
+
+# Generate Prisma client (once after schema changes)
+pnpm prisma:generate
+
+# Create/migrate tables (creates Car table)
+pnpm prisma:migrate
+
+# Ingest the provided CSV (path with spaces is already quoted)
+pnpm ingest:cars
+
+# Optional: open Prisma Studio to inspect data
+pnpm prisma:studio
+```
+
 ### Environment variables
 
 Create `.env.local` (Vercel will use project envs):

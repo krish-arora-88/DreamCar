@@ -1,0 +1,34 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Car {
+  id           String   @id @default(cuid())
+  make         String
+  model        String
+  year         Int
+  vehicleType  String?
+  priceLower   Int?
+  priceUpper   Int?
+  score        Int?
+
+  gas          Boolean?
+  hybrid       Boolean?
+  phev         Boolean?
+  ev           Boolean?
+  transmission String?
+
+  features     Json     // raw and derived feature flags and notes from CSV
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([make, model, year])
+  @@index([make, model])
+}
+
