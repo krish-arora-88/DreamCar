@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { parse } from 'csv-parse';
 import { PrismaClient } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 
 type Nullable<T> = T | null;
 
@@ -103,7 +104,7 @@ async function main() {
       'Transmission',
     ]);
 
-    const features: Record<string, unknown> = {};
+    const features: Record<string, Prisma.InputJsonValue | null> = {};
     for (const [key, val] of Object.entries(record)) {
       if (handled.has(key)) continue;
       const text = typeof val === 'string' ? val.trim() : '';
@@ -142,7 +143,7 @@ async function main() {
         phev,
         ev,
         transmission,
-        features,
+        features: features as Prisma.InputJsonObject,
       },
       create: {
         make,
@@ -157,7 +158,7 @@ async function main() {
         phev,
         ev,
         transmission,
-        features,
+        features: features as Prisma.InputJsonObject,
       },
     });
 

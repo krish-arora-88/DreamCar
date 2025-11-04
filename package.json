@@ -18,14 +18,14 @@
   "dependencies": {
     "@prisma/client": "^5.19.1",
     "dotenv": "^16.4.5",
-    "zod": "^3.23.8"
+    "zod": "^3.23.8",
+    "csv-parse": "^5.5.6"
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
     "prisma": "^5.19.1",
     "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "csv-parse": "^5.5.6"
+    "typescript": "^5.6.3"
   }
 }
 
