@@ -1,0 +1,16 @@
+{
+  "hardFilters": {
+    "price": { "max": 45000 },
+    "vehicleType": ["SUV", "Sedan"],
+    "fuelType": ["hybrid", "ev"],
+    "brands": ["Toyota", "Tesla"],
+    "year": { "min": 2018 }
+  },
+  "weights": {
+    "priceFit": 2,
+    "fuel": 1,
+    "vehicleType": 1
+  },
+  "topN": 10
+}
+

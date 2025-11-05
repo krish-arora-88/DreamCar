@@ -266,6 +266,38 @@ pnpm ingest:cars
 pnpm prisma:studio
 ```
 
+### Phase 2: Deterministic search (Weighted Sum)
+
+```bash
+# Prepare a preferences JSON (or use the example)
+cp prefs.example.json my-prefs.json
+
+# Run a search with top 10
+pnpm search
+# or custom
+tsx scripts/search.ts my-prefs.json 15 > results.json
+```
+
+Output structure sample:
+
+```json
+{
+  "items": [
+    {
+      "carId": "...",
+      "make": "Toyota",
+      "model": "RAV4",
+      "year": 2022,
+      "vehicleType": "SUV",
+      "priceLower": 32000,
+      "priceUpper": 38000,
+      "overall": 0.83,
+      "contributions": { "priceFit": 0.42, "fuel": 0.21, "vehicleType": 0.20 }
+    }
+  ]
+}
+```
+
 ### Environment variables
 
 Create `.env.local` (Vercel will use project envs):

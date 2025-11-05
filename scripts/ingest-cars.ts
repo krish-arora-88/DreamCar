@@ -39,7 +39,7 @@ function normalizeKey(key: string): string {
 }
 
 async function main() {
-  const inputPathArg = process.argv[2] ?? "data/Cars (Updated Oct 28, 2025) - Sheet1.csv";
+  const inputPathArg = process.argv[2] ?? "data/Cars_Nov_4_2025.csv";
   const inputPath = path.resolve(process.cwd(), inputPathArg);
 
   if (!fs.existsSync(inputPath)) {

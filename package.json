@@ -13,7 +13,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "ingest:cars": "tsx scripts/ingest-cars.ts \"data/Cars (Updated Oct 28, 2025) - Sheet1.csv\""
+    "ingest:cars": "tsx scripts/ingest-cars.ts \"data/Cars_Nov_4_2025.csv\"",
+    "search": "tsx scripts/search.ts prefs.example.json 10"
   },
   "dependencies": {
     "@prisma/client": "^5.19.1",
