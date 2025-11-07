@@ -298,6 +298,21 @@ Output structure sample:
 }
 ```
 
+### Phase 3: API routes (Next.js)
+
+```bash
+# Start API locally
+pnpm dev
+
+# Search
+curl -X POST http://localhost:3000/api/search \
+  -H 'Content-Type: application/json' \
+  --data-binary @prefs.example.json | jq
+
+# Car details
+curl http://localhost:3000/api/cars/<id> | jq
+```
+
 ### Environment variables
 
 Create `.env.local` (Vercel will use project envs):

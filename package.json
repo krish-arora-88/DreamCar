@@ -7,8 +7,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "dev": "echo 'Phase 1: data ingest scaffolding in place'",
-    "build": "tsc -p tsconfig.json",
+    "dev": "next dev",
+    "build": "next build && tsc -p tsconfig.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
@@ -17,6 +17,9 @@
     "search": "tsx scripts/search.ts prefs.example.json 10"
   },
   "dependencies": {
+    "next": "^14.2.15",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "@prisma/client": "^5.19.1",
     "dotenv": "^16.4.5",
     "zod": "^3.23.8",
@@ -24,6 +27,7 @@
   },
   "devDependencies": {
     "@types/node": "^20.11.30",
+    "@types/react": "^18.2.43",
     "prisma": "^5.19.1",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3"
