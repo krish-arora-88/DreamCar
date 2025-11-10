@@ -312,6 +312,15 @@ curl -X POST http://localhost:3000/api/search \
 # Car details
 curl http://localhost:3000/api/cars/<id> | jq
 ```
+### Phase 4: Preference extraction (GPT) and compromises with caching
+
+Requirements:
+- Set `OPENAI_API_KEY` in your env.
+- Optional cache: set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (recommended).
+- Optional: `CACHE_TTL_SECONDS` (default 86400).
+
+```bash
+# Extract preferences from a prompt\ncurl -X POST http://localhost:3000/api/preferences/extract \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"prompt\":\"Budget under 45k, SUV or sedan, prefer hybrid or EV, Toyota or Tesla, year 2018+\", \"draft\": {\"weights\":{\"priceFit\":2}}}' | jq\n\n# Run search with extracted prefs (edit as needed)\n# Save JSON to prefs.json then:\ncurl -X POST http://localhost:3000/api/search \\\n  -H 'Content-Type: application/json' \\\n  --data-binary @prefs.json | jq\n\n# Generate compromises for top-N (use items from search response)\n# Save a body like: {\"prefs\": <prefs>, \"items\": <items array>} to body.json\ncurl -X POST http://localhost:3000/api/compromises \\\n  -H 'Content-Type: application/json' \\\n  --data-binary @body.json | jq\n```
 
 ### Environment variables
 

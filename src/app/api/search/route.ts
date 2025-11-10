@@ -3,10 +3,18 @@ export const runtime = 'nodejs';
 import { prisma } from '../../../lib/prisma';
 import type { Preferences } from '../../../types/preferences';
 import { scoreCars } from '../../../scoring/weighted';
+import { cacheGet, cacheSet } from '../../../lib/cache';
+import { preferenceSignature } from '../../../utils/hash';
 
 export async function POST(req: Request): Promise<Response> {
   try {
     const prefs = (await req.json()) as Preferences;
+    const signature = preferenceSignature(prefs);
+
+    const cached = await cacheGet<{ items: unknown[] }>(`search:${signature}`);
+    if (cached) {
+      return Response.json({ ...cached, signature });
+    }
 
     const where: any = {};
     if (prefs.hardFilters?.brands && prefs.hardFilters.brands.length > 0) {
@@ -43,7 +51,9 @@ export async function POST(req: Request): Promise<Response> {
     const scored = scoreCars(filtered, prefs);
     const n = prefs.topN ?? 10;
     const top = scored.slice(0, Math.max(1, Math.min(100, n)));
-    return Response.json({ items: top });
+    const payload = { items: top };
+    await cacheSet(`search:${signature}`, payload);
+    return Response.json({ ...payload, signature });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return new Response(JSON.stringify({ error: message }), { status: 400 });
