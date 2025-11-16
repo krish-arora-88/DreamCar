@@ -375,9 +375,9 @@ BETTERSTACK_SOURCE_TOKEN=... # or LOGTAIL_SOURCE_TOKEN=...
 ```
 
 ### Testing
-- Unit: Vitest (+ `ts-pattern` for guards)
-- E2E: Playwright (flows: questionnaire → results → details)
-- Prompt tests: snapshot top‑N compromise summaries for regressions
+- Unit: Vitest (`src/scoring`, `src/utils`)
+- E2E: Playwright (API smoke: `/api/search`)
+- Snapshots: hash signature stability\n\n```bash\n# Unit tests\npnpm test\n# Coverage\npnpm test:coverage\n# E2E (starts dev server automatically)\npnpm test:e2e\n```
 
 ```bash
 pnpm test
