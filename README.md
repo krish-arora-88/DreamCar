@@ -320,7 +320,57 @@ Requirements:
 - Optional: `CACHE_TTL_SECONDS` (default 86400).
 
 ```bash
-# Extract preferences from a prompt\ncurl -X POST http://localhost:3000/api/preferences/extract \\\n  -H 'Content-Type: application/json' \\\n  -d '{\"prompt\":\"Budget under 45k, SUV or sedan, prefer hybrid or EV, Toyota or Tesla, year 2018+\", \"draft\": {\"weights\":{\"priceFit\":2}}}' | jq\n\n# Run search with extracted prefs (edit as needed)\n# Save JSON to prefs.json then:\ncurl -X POST http://localhost:3000/api/search \\\n  -H 'Content-Type: application/json' \\\n  --data-binary @prefs.json | jq\n\n# Generate compromises for top-N (use items from search response)\n# Save a body like: {\"prefs\": <prefs>, \"items\": <items array>} to body.json\ncurl -X POST http://localhost:3000/api/compromises \\\n  -H 'Content-Type: application/json' \\\n  --data-binary @body.json | jq\n```
+# Extract preferences from a prompt
+curl -X POST http://localhost:3000/api/preferences/extract \
+  -H 'Content-Type: application/json' \
+  -d '{"prompt":"Budget under 45k, SUV or sedan, prefer hybrid or EV, Toyota or Tesla, year 2018+", "draft": {"weights":{"priceFit":2}}}' | jq
+
+# Run search with extracted prefs (edit as needed)
+# Save JSON to prefs.json then:
+curl -X POST http://localhost:3000/api/search \
+  -H 'Content-Type: application/json' \
+  --data-binary @prefs.json | jq
+
+# Generate compromises for top-N (use items from search response)
+# Save a body like: {"prefs": <prefs>, "items": <items array>} to body.json
+curl -X POST http://localhost:3000/api/compromises \
+  -H 'Content-Type: application/json' \
+  --data-binary @body.json | jq
+```
+
+### Phase 5: Testing (Vitest + Playwright)
+
+```bash
+# Unit tests
+pnpm test
+
+# Coverage
+pnpm test:coverage
+
+# E2E (spins up dev server)
+pnpm test:e2e
+```
+
+### Phase 6: Frontend UI
+
+```bash
+# Start the dev server
+pnpm dev
+
+# Open browser to http://localhost:3000
+# - Home page: landing with CTA
+# - /search: questionnaire with RHF + Zod validation
+# - /results: ranked cars with contribution charts
+# - /cars/[id]: car detail page with features
+```
+
+Features:
+- React Hook Form + Zod for validation
+- TanStack Query for data fetching
+- Recharts for contribution visualization
+- shadcn/ui components (Button, Card, Input, Label, Skeleton)
+- Tailwind CSS for styling
+- Optimistic UI with skeleton loaders
 
 ### Environment variables
 
