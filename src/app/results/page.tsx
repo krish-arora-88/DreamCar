@@ -23,6 +23,7 @@ async function searchCars(prefs: any): Promise<{ items: ScoredCarResult[] }> {
 export default function ResultsPage() {
   const searchParams = useSearchParams();
   const prefsParam = searchParams.get('prefs');
+  const reasoningParam = searchParams.get('reasoning');
   const prefs = prefsParam ? JSON.parse(prefsParam) : null;
 
   const { data, isLoading, error } = useQuery({
@@ -49,12 +50,20 @@ export default function ResultsPage() {
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-muted py-8">
       <div className="container mx-auto px-4 max-w-4xl">
-        <Link href="/search" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
+        <Link href="/quiz" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Search
+          Retake Quiz
         </Link>
 
-        <h1 className="text-3xl font-bold mb-6">Your Matches</h1>
+        <h1 className="text-3xl font-bold mb-2">Your Perfect Matches</h1>
+        {reasoningParam && (
+          <Card className="mb-6 bg-primary/5 border-primary/20">
+            <CardContent className="pt-6">
+              <p className="text-sm text-muted-foreground leading-relaxed">{reasoningParam}</p>
+            </CardContent>
+          </Card>
+        )}
+
 
         {isLoading && (
           <div className="space-y-4">
@@ -85,8 +94,13 @@ export default function ResultsPage() {
           <Card>
             <CardHeader>
               <CardTitle>No Results Found</CardTitle>
-              <CardDescription>Try adjusting your search criteria</CardDescription>
+              <CardDescription>Try taking the quiz again with different answers</CardDescription>
             </CardHeader>
+            <CardContent>
+              <Link href="/quiz">
+                <Button>Retake Quiz</Button>
+              </Link>
+            </CardContent>
           </Card>
         )}
 
@@ -118,13 +132,16 @@ export default function ResultsPage() {
                 </CardHeader>
                 <CardContent>
                   <div className="mb-4">
-                    <h4 className="text-sm font-semibold mb-2">Score Breakdown</h4>
+                    <h4 className="text-sm font-semibold mb-2">Why This Match</h4>
                     <ContributionChart contributions={car.contributions} />
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Based on your quiz answers, this car excels in areas that matter most to you.
+                    </p>
                   </div>
                   <Link href={`/cars/${car.carId}`}>
                     <Button variant="outline" className="w-full">
                       <Car className="mr-2 h-4 w-4" />
-                      View Details
+                      View Full Details
                     </Button>
                   </Link>
                 </CardContent>

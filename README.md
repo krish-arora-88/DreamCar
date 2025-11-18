@@ -351,26 +351,40 @@ pnpm test:coverage
 pnpm test:e2e
 ```
 
-### Phase 6: Frontend UI
+### Phase 6: Quiz-Based Frontend UI
 
 ```bash
 # Start the dev server
 pnpm dev
 
 # Open browser to http://localhost:3000
-# - Home page: landing with CTA
-# - /search: questionnaire with RHF + Zod validation
-# - /results: ranked cars with contribution charts
-# - /cars/[id]: car detail page with features
 ```
 
-Features:
-- React Hook Form + Zod for validation
+**User Flow:**
+1. **Home** (`/`) - Landing page with "Take the Quiz" CTA
+2. **Quiz** (`/quiz`) - 15 curated lifestyle questions (no technical filters!)
+   - Questions about family, commute, parking, weather, cargo needs, style, etc.
+   - Progress bar and step-by-step navigation
+   - Yes/No, Multiple Choice, and Scale questions
+3. **AI Analysis** - GPT-4o automatically analyzes quiz answers and determines:
+   - Which car features matter most (safety, tech, space, performance, etc.)
+   - Appropriate weight distribution across 7 scoring dimensions
+   - Budget and vehicle type preferences
+4. **Results** (`/results`) - Personalized ranked matches with:
+   - AI reasoning explanation ("Based on your answers...")
+   - Match scores and "Why This Match" contribution charts
+   - No technical jargon - user-friendly language
+5. **Details** (`/cars/[id]`) - Full car specifications
+
+**Key Features:**
+- **No explicit filters** - users answer lifestyle questions instead
+- **GPT-4o decides weights** - automatic preference extraction
+- **7 scoring dimensions**: Price Fit, Fuel, Vehicle Type, Safety, Technology, Space, Performance
+- JSON-driven quiz config (easy to add/modify questions)
+- React Hook Form for quiz state management
 - TanStack Query for data fetching
 - Recharts for contribution visualization
-- shadcn/ui components (Button, Card, Input, Label, Skeleton)
-- Tailwind CSS for styling
-- Optimistic UI with skeleton loaders
+- shadcn/ui components + Tailwind CSS
 
 ### Environment variables
 

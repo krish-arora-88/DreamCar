@@ -12,6 +12,10 @@ export interface Preferences {
     priceFit?: number;
     fuel?: number;
     vehicleType?: number;
+    safety?: number;
+    technology?: number;
+    space?: number;
+    performance?: number;
   };
   topN?: number;
 }
@@ -20,6 +24,10 @@ export interface Contribution {
   priceFit?: number;
   fuel?: number;
   vehicleType?: number;
+  safety?: number;
+  technology?: number;
+  space?: number;
+  performance?: number;
 }
 
 export interface ScoredCarResult {

@@ -17,10 +17,10 @@ export default function Home() {
         </div>
 
         <div className="flex justify-center mb-16">
-          <Link href="/search">
+          <Link href="/quiz">
             <Button size="lg" className="text-lg px-8">
               <Search className="mr-2 h-5 w-5" />
-              Start Your Search
+              Take the Quiz
             </Button>
           </Link>
         </div>
@@ -29,9 +29,9 @@ export default function Home() {
           <Card>
             <CardHeader>
               <Search className="h-8 w-8 mb-2 text-primary" />
-              <CardTitle>Smart Matching</CardTitle>
+              <CardTitle>Personalized Quiz</CardTitle>
               <CardDescription>
-                Express your preferences naturally and get ranked results based on what matters to you
+                Answer curated questions about your lifestyle and driving needs to find your perfect match
               </CardDescription>
             </CardHeader>
           </Card>
@@ -39,9 +39,9 @@ export default function Home() {
           <Card>
             <CardHeader>
               <Zap className="h-8 w-8 mb-2 text-primary" />
-              <CardTitle>Explainable Scores</CardTitle>
+              <CardTitle>AI-Powered Analysis</CardTitle>
               <CardDescription>
-                See exactly why each car matches your needs with per-criterion contributions
+                GPT-4o analyzes your answers and automatically determines what matters most to you
               </CardDescription>
             </CardHeader>
           </Card>
