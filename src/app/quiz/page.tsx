@@ -8,6 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { quizQuestions, type QuizQuestion } from '@/config/quiz-questions';
 import type { QuizAnswers } from '@/types/quiz';
+import { RankingQuestion } from '@/components/ranking-question';
 import { ArrowLeft, ArrowRight, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -66,7 +67,9 @@ export default function QuizPage() {
   };
 
   const currentAnswer = answers[currentQuestion.id];
-  const canProceed = currentAnswer !== undefined && currentAnswer !== '';
+  const canProceed = currentQuestion.type === 'ranking' 
+    ? currentAnswer && typeof currentAnswer === 'object' && Object.keys(currentAnswer).length > 0
+    : currentAnswer !== undefined && currentAnswer !== '';
 
   return (
     <main className="min-h-screen bg-gradient-to-b from-background to-muted py-8">
@@ -169,6 +172,17 @@ export default function QuizPage() {
                 onChange={(e) => handleAnswer(e.target.value)}
                 placeholder="Type your answer..."
                 className="text-lg"
+              />
+            )}
+
+            {/* Ranking Question */}
+            {currentQuestion.type === 'ranking' && currentQuestion.options && currentQuestion.rankingCategories && (
+              <RankingQuestion
+                key={currentQuestion.id}
+                options={currentQuestion.options}
+                categories={currentQuestion.rankingCategories}
+                value={(currentAnswer as Record<string, string[]>) || {}}
+                onChange={(value) => handleAnswer(value)}
               />
             )}
 

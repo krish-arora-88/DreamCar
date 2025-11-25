@@ -19,6 +19,12 @@ Consider these factors:
 - Cargo needs → larger vehicles, storage capacity
 - Budget → price filter
 
+For ranking questions (where user ranks items into categories like "Most of the time", "Sometimes", "Never"):
+- Items in "Most of the time" / "Frequently" should heavily influence preferences
+- Items in "Sometimes" / "Occasionally" should moderately influence
+- Items in "Never" / "Rarely" should be deprioritized or filtered out
+- Use the ranking to determine vehicle type, size, and feature priorities
+
 Available weight categories:
 - priceFit: How well the price matches their budget
 - fuel: Fuel efficiency and type preference
@@ -58,7 +64,16 @@ export async function POST(req: Request): Promise<Response> {
 
     // Format answers for GPT
     const formattedAnswers = Object.entries(answers)
-      .map(([key, value]) => `${key}: ${value}`)
+      .map(([key, value]) => {
+        if (typeof value === 'object' && !Array.isArray(value)) {
+          // Ranking question - format as categories with items
+          const rankingText = Object.entries(value)
+            .map(([category, items]) => `  ${category}: ${(items as string[]).join(', ') || 'none'}`)
+            .join('\n');
+          return `${key}:\n${rankingText}`;
+        }
+        return `${key}: ${value}`;
+      })
       .join('\n');
 
     const completion = await openai.chat.completions.create({

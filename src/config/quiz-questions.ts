@@ -1,8 +1,9 @@
 export interface QuizQuestion {
   id: string;
   question: string;
-  type: 'yes_no' | 'multiple_choice' | 'scale' | 'text';
+  type: 'yes_no' | 'multiple_choice' | 'scale' | 'text' | 'ranking';
   options?: string[];
+  rankingCategories?: string[]; // e.g., ["Most of the time", "Sometimes", "Never"]
   scaleMin?: number;
   scaleMax?: number;
   scaleLabels?: { min: string; max: string };
@@ -28,26 +29,30 @@ export const quizQuestions: QuizQuestion[] = [
   },
   {
     id: 'driving_environment',
-    question: 'Where do you drive most often?',
-    type: 'multiple_choice',
-    options: ['City streets', 'Mix of city and highway', 'Mostly highway', 'Off-road or rural areas'],
+    question: 'Rank where you drive by frequency',
+    type: 'ranking',
+    options: ['City streets', 'Highway', 'Rural areas', 'Off-road'],
+    rankingCategories: ['Most of the time', 'Sometimes', 'Rarely'],
   },
   {
     id: 'parking_situation',
-    question: 'What is your typical parking situation?',
-    type: 'multiple_choice',
-    options: ['Tight city parking', 'Street parking', 'Garage at home', 'Large parking lots', 'Varied locations'],
+    question: 'Rank your parking situations by frequency',
+    type: 'ranking',
+    options: ['City streets', 'Parking Lot', 'Garage', 'Driveway'],
+    rankingCategories: ['Most of the time', 'Sometimes', 'Never'],
   },
   {
     id: 'weather_conditions',
     question: 'Do you regularly drive in snow, ice, or harsh weather?',
-    type: 'yes_no',
+    type: 'multiple_choice',
+    options: ['Yes', 'Sometimes', 'Never'],
   },
   {
     id: 'cargo_needs',
-    question: 'How often do you need to transport large items or cargo?',
-    type: 'multiple_choice',
-    options: ['Rarely or never', 'Occasionally', 'Frequently', 'Very often'],
+    question: 'Rank what you typically transport',
+    type: 'ranking',
+    options: ['Groceries only', 'Sports equipment', 'Furniture/large items', 'Work tools/equipment'],
+    rankingCategories: ['Frequently', 'Occasionally', 'Never'],
   },
   {
     id: 'towing_needs',
