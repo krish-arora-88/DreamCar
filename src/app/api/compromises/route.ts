@@ -1,8 +1,9 @@
 export const runtime = 'nodejs';
 
 import { z } from 'zod';
-import { OPENAI_MODELS } from '@/lib/openai';
+import { isLLMConfigured } from '@/lib/openai';
 import { openaiJson } from '@/lib/openaiJson';
+import { getDeployment } from '@/lib/llmModels';
 import { cacheGet, cacheSet } from '@/lib/cache';
 import { preferenceSignature } from '@/utils/hash';
 import { withTelemetry } from '@/lib/telemetry';
@@ -21,6 +22,12 @@ const BodySchema = z.object({
 });
 
 async function handler(req: Request): Promise<Response> {
+  if (!isLLMConfigured()) {
+    return Response.json(
+      { error: 'LLM not configured', howToFix: 'Set AZURE_OPENAI_API_KEY and AZURE_OPENAI_BASE_URL (or OPENAI_API_KEY for vanilla OpenAI).' },
+      { status: 503 },
+    );
+  }
   const body = BodySchema.parse(await req.json());
   const signature = preferenceSignature({ prefs: body.prefs, items: body.items.map((i) => i.carId) });
 
@@ -38,7 +45,7 @@ async function handler(req: Request): Promise<Response> {
   });
 
   const { data: parsed } = await openaiJson<{ items?: Array<{ carId: string; bullets: string[] }> }>({
-    model: OPENAI_MODELS.compromises(),
+    model: getDeployment('compromises'),
     systemPrompt: system,
     userPrompt: user,
     temperature: 0.5,

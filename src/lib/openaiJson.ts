@@ -76,7 +76,25 @@ export async function openaiJson<T = unknown>(
     }),
   );
 
-  const raw = completion.choices[0]?.message?.content ?? '';
+  const choice = completion.choices[0];
+
+  if (choice?.finish_reason === 'content_filter') {
+    throw new OpenAIJsonError(
+      'Azure content filter triggered — the response was blocked. ' +
+        'Review your prompt or adjust Azure content filter settings.',
+      choice.message?.content ?? '',
+    );
+  }
+
+  const raw = choice?.message?.content ?? '';
+
+  if (!raw) {
+    throw new OpenAIJsonError(
+      'Empty response from LLM (possible Azure content filter or model error).',
+      '',
+    );
+  }
+
   const data = extractJson(raw) as T;
 
   return { data, usage };

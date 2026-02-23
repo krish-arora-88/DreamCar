@@ -1,8 +1,9 @@
 export const runtime = 'nodejs';
 
 import { z } from 'zod';
-import { OPENAI_MODELS } from '@/lib/openai';
+import { isLLMConfigured } from '@/lib/openai';
 import { openaiJson } from '@/lib/openaiJson';
+import { getDeployment } from '@/lib/llmModels';
 import { withTelemetry } from '@/lib/telemetry';
 
 const PrefsSchema = z.object({
@@ -28,6 +29,12 @@ const PrefsSchema = z.object({
 });
 
 async function handler(req: Request): Promise<Response> {
+  if (!isLLMConfigured()) {
+    return Response.json(
+      { error: 'LLM not configured', howToFix: 'Set AZURE_OPENAI_API_KEY and AZURE_OPENAI_BASE_URL (or OPENAI_API_KEY for vanilla OpenAI).' },
+      { status: 503 },
+    );
+  }
   const body = (await req.json()) as { prompt?: string; draft?: unknown };
   const prompt = body.prompt ?? '';
   const draft = body.draft ?? {};
@@ -40,7 +47,7 @@ async function handler(req: Request): Promise<Response> {
   const user = `User description:\n${prompt}\nDraft JSON (may be partial):\n${JSON.stringify(draft)}`;
 
   const { data: parsed } = await openaiJson({
-    model: OPENAI_MODELS.prefExtract(),
+    model: getDeployment('prefExtract'),
     systemPrompt: system,
     userPrompt: user,
     temperature: 0.2,

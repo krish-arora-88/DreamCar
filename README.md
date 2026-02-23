@@ -228,7 +228,7 @@ Content-Type: application/json
 - pnpm (preferred) or npm
 - PostgreSQL (Supabase/Neon)
 - Redis (Upstash)
-- OpenAI API key
+- Azure OpenAI resource (preferred) or OpenAI API key
 
 ### Setup
 
@@ -315,7 +315,7 @@ curl http://localhost:3000/api/cars/<id> | jq
 ### Phase 4: Preference extraction (GPT) and compromises with caching
 
 Requirements:
-- Set `OPENAI_API_KEY` in your env.
+- Set Azure OpenAI env vars (see **Azure OpenAI setup** below) or `OPENAI_API_KEY` for vanilla OpenAI.
 - Optional cache: set `UPSTASH_REDIS_REST_URL` and `UPSTASH_REDIS_REST_TOKEN` (recommended).
 - Optional: `CACHE_TTL_SECONDS` (default 86400).
 
@@ -384,7 +384,7 @@ pnpm dev
 - **Server-side validation** - Zod schema validates all API inputs; invalid payloads get 400
 - **Normalized feature keys** - CSV column names are snake_cased for consistent scoring
 - **Telemetry** - structured JSON logs with request IDs on every API route
-- **Resilient OpenAI** - configurable timeout/retries, robust JSON parsing, caching
+- **Resilient LLM client** - Azure OpenAI v1 (preferred) with vanilla OpenAI fallback, configurable timeout/retries, robust JSON parsing, caching
 - JSON-driven quiz config (easy to add/modify questions)
 - React Hook Form for quiz state management
 - TanStack Query for data fetching
@@ -404,17 +404,38 @@ Key variables (see `.env.example` for full list with comments):
 | Variable | Required | Description |
 |---|---|---|
 | `DATABASE_URL` | Yes | PostgreSQL connection string |
-| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `AZURE_OPENAI_API_KEY` | Yes* | Azure OpenAI API key |
+| `AZURE_OPENAI_BASE_URL` | Yes* | e.g. `https://<resource>.openai.azure.com/openai/v1/` |
+| `AZURE_OPENAI_DEPLOYMENT_DEFAULT` | No | Default deployment name (fallback for all slots) |
+| `AZURE_OPENAI_DEPLOYMENT_COMPROMISES` | No | Deployment for compromise explanations |
+| `AZURE_OPENAI_DEPLOYMENT_PREF_EXTRACT` | No | Deployment for preference extraction |
+| `OPENAI_API_KEY` | No | Vanilla OpenAI fallback (used if Azure vars absent) |
 | `OPENAI_TIMEOUT_MS` | No | Request timeout (default 20000) |
 | `OPENAI_MAX_RETRIES` | No | Retry count (default 2) |
-| `OPENAI_MODEL_QUIZ` | No | Model for quiz analysis (default `gpt-4o-mini`) |
-| `OPENAI_MODEL_PREF_EXTRACT` | No | Model for preference extraction (default `gpt-4o-mini`) |
-| `OPENAI_MODEL_COMPROMISES` | No | Model for compromise explanations (default `gpt-4o`) |
 | `UPSTASH_REDIS_REST_URL` | No | Upstash Redis URL (caching) |
 | `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis token |
 | `CACHE_TTL_SECONDS` | No | Search cache TTL (default 86400) |
 | `QUIZ_CACHE_TTL_SECONDS` | No | Quiz cache TTL (default 21600) |
 | `PRISMA_LOG_QUERIES` | No | Log SQL queries (default false) |
+
+\* Either `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_BASE_URL` or `OPENAI_API_KEY` must be set. Azure is preferred.
+
+### Azure OpenAI setup
+
+1. **Create an Azure OpenAI resource** in the [Azure Portal](https://portal.azure.com/#create/Microsoft.CognitiveServicesOpenAI).
+2. **Deploy models** in [Azure OpenAI Studio](https://oai.azure.com/) — e.g. deploy `gpt-4o` as deployment name `gpt-4o` and `gpt-4o-mini` as `gpt-4o-mini`.
+3. Copy the **Endpoint** (e.g. `https://my-resource.openai.azure.com`) and one of the **Keys** from the Azure Portal.
+4. Set env vars:
+
+```bash
+AZURE_OPENAI_API_KEY=<your-key>
+AZURE_OPENAI_BASE_URL=https://my-resource.openai.azure.com/openai/v1/
+AZURE_OPENAI_DEPLOYMENT_DEFAULT=gpt-4o-mini
+AZURE_OPENAI_DEPLOYMENT_COMPROMISES=gpt-4o
+AZURE_OPENAI_DEPLOYMENT_PREF_EXTRACT=gpt-4o-mini
+```
+
+> **Important:** In Azure OpenAI, the `model` parameter in API calls is the **deployment name**, not the upstream OpenAI model ID. Make sure your deployment names match what you set in the env vars above.
 
 #### Serverless / connection pooling
 
