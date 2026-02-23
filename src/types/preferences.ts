@@ -17,6 +17,7 @@ export interface Preferences {
     space?: number;
     performance?: number;
   };
+  criteriaImportance?: Record<string, number>;
   topN?: number;
 }
 

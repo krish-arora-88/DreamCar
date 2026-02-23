@@ -1,124 +1,65 @@
 export const runtime = 'nodejs';
 
-import { openai } from '@/lib/openai';
-import type { QuizAnswers, AnalyzedPreferences } from '@/types/quiz';
+import { cacheGet, cacheSet } from '@/lib/cache';
+import { preferenceSignature } from '@/utils/hash';
+import { withTelemetry } from '@/lib/telemetry';
+import { QuizV2AnswersSchema } from '@/lib/api-schemas';
+import { derivePreferences } from '@/lib/quiz/v2/derivePreferences';
 
-const ANALYSIS_SYSTEM_PROMPT = `You are an expert car recommendation analyst. Your job is to analyze quiz answers about a person's lifestyle, family, driving habits, and preferences, then determine:
+const QUIZ_CACHE_TTL = Number(process.env.QUIZ_CACHE_TTL_SECONDS ?? '21600');
 
-1. Hard filters (price range, vehicle types, fuel types, brands if applicable)
-2. Importance weights for different criteria (higher weight = more important to this person)
-3. A brief reasoning explaining your analysis
-
-Consider these factors:
-- Family with infants → higher weight on safety, space, ISOFIX anchors
-- Long commute → higher weight on fuel efficiency, comfort
-- City parking → smaller vehicles preferred
-- Off-road/harsh weather → AWD/4WD preference, higher ground clearance
-- Environmental concern → EV/hybrid preference
-- Tech enthusiast → higher weight on technology features
-- Cargo needs → larger vehicles, storage capacity
-- Budget → price filter
-
-For ranking questions (where user ranks items into categories like "Most of the time", "Sometimes", "Never"):
-- Items in "Most of the time" / "Frequently" should heavily influence preferences
-- Items in "Sometimes" / "Occasionally" should moderately influence
-- Items in "Never" / "Rarely" should be deprioritized or filtered out
-- Use the ranking to determine vehicle type, size, and feature priorities
-
-Available weight categories:
-- priceFit: How well the price matches their budget
-- fuel: Fuel efficiency and type preference
-- vehicleType: Body style match (sedan, SUV, truck, etc.)
-- safety: Safety features and ratings
-- technology: Tech features and connectivity
-- space: Interior space and cargo capacity
-- performance: Power, handling, driving experience
-
-Return JSON with structure:
-{
-  "hardFilters": {
-    "price": { "max": number },
-    "vehicleType": string[],
-    "fuelType": ("gas"|"hybrid"|"phev"|"ev")[],
-    "year": { "min": number }
-  },
-  "weights": {
-    "priceFit": number,
-    "fuel": number,
-    "vehicleType": number,
-    "safety": number,
-    "technology": number,
-    "space": number,
-    "performance": number
-  },
-  "reasoning": string
-}`;
-
-export async function POST(req: Request): Promise<Response> {
-  try {
-    const { answers }: { answers: QuizAnswers } = await req.json();
-
-    if (!answers || Object.keys(answers).length === 0) {
-      return new Response(JSON.stringify({ error: 'No quiz answers provided' }), { status: 400 });
-    }
-
-    // Format answers for GPT
-    const formattedAnswers = Object.entries(answers)
-      .map(([key, value]) => {
-        if (typeof value === 'object' && !Array.isArray(value)) {
-          // Ranking question - format as categories with items
-          const rankingText = Object.entries(value)
-            .map(([category, items]) => `  ${category}: ${(items as string[]).join(', ') || 'none'}`)
-            .join('\n');
-          return `${key}:\n${rankingText}`;
-        }
-        return `${key}: ${value}`;
-      })
-      .join('\n');
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      temperature: 0.3,
-      messages: [
-        { role: 'system', content: ANALYSIS_SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Analyze these quiz answers and determine the user's car preferences:\n\n${formattedAnswers}`,
-        },
-      ],
-      response_format: { type: 'json_object' },
-    });
-
-    const analysisText = completion.choices[0]?.message?.content;
-    if (!analysisText) {
-      throw new Error('No response from GPT');
-    }
-
-    const analyzed = JSON.parse(analysisText) as AnalyzedPreferences;
-
-    // Validate and set defaults
-    const preferences = {
-      hardFilters: analyzed.hardFilters || {},
-      weights: {
-        priceFit: analyzed.weights?.priceFit || 1,
-        fuel: analyzed.weights?.fuel || 1,
-        vehicleType: analyzed.weights?.vehicleType || 1,
-        safety: analyzed.weights?.safety || 1,
-        technology: analyzed.weights?.technology || 1,
-        space: analyzed.weights?.space || 1,
-        performance: analyzed.weights?.performance || 1,
-      },
-      topN: 20,
-    };
-
-    return Response.json({
-      preferences,
-      reasoning: analyzed.reasoning || 'Analysis completed based on your quiz responses.',
-    });
-  } catch (error: unknown) {
-    console.error('Quiz analysis error:', error);
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    return new Response(JSON.stringify({ error: message }), { status: 500 });
-  }
+interface CachedResult {
+  preferences: unknown;
+  reasoning: string;
+  criteriaImportance: Record<string, number>;
+  mustHaves?: string[];
+  avoid?: string[];
 }
 
+async function handler(req: Request): Promise<Response> {
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400 });
+  }
+
+  const payload = body as { answers?: unknown };
+  if (!payload.answers || typeof payload.answers !== 'object') {
+    return new Response(JSON.stringify({ error: 'No quiz answers provided' }), { status: 400 });
+  }
+
+  const parsed = QuizV2AnswersSchema.safeParse(payload.answers);
+  if (!parsed.success) {
+    return new Response(
+      JSON.stringify({ error: 'Invalid quiz answers', details: parsed.error.flatten() }),
+      { status: 400 },
+    );
+  }
+
+  const cacheKey = `quiz:v2:${preferenceSignature(parsed.data)}`;
+  const cached = await cacheGet<CachedResult>(cacheKey);
+  if (cached) return Response.json(cached);
+
+  const derived = derivePreferences(parsed.data);
+
+  const preferences = {
+    hardFilters: derived.hardFilters,
+    weights: derived.weights,
+    criteriaImportance: derived.criteriaImportance,
+    topN: 20,
+  };
+
+  const result: CachedResult = {
+    preferences,
+    reasoning: derived.reasoning,
+    criteriaImportance: derived.criteriaImportance,
+    mustHaves: derived.mustHaves,
+    avoid: derived.avoid,
+  };
+
+  await cacheSet(cacheKey, result, QUIZ_CACHE_TTL);
+  return Response.json(result);
+}
+
+export const POST = withTelemetry('/api/quiz/analyze', handler);

@@ -362,11 +362,11 @@ pnpm dev
 
 **User Flow:**
 1. **Home** (`/`) - Landing page with "Take the Quiz" CTA
-2. **Quiz** (`/quiz`) - 15 curated lifestyle questions (no technical filters!)
+2. **Quiz** (`/quiz`) - Curated lifestyle questions (no technical filters!)
    - Questions about family, commute, parking, weather, cargo needs, style, etc.
    - Progress bar and step-by-step navigation
-   - Yes/No, Multiple Choice, and Scale questions
-3. **AI Analysis** - GPT-4o automatically analyzes quiz answers and determines:
+   - Yes/No, Multiple Choice, Scale, and Ranking questions
+3. **AI Analysis** - GPT automatically analyzes quiz answers and determines:
    - Which car features matter most (safety, tech, space, performance, etc.)
    - Appropriate weight distribution across 7 scoring dimensions
    - Budget and vehicle type preferences
@@ -374,12 +374,17 @@ pnpm dev
    - AI reasoning explanation ("Based on your answers...")
    - Match scores and "Why This Match" contribution charts
    - No technical jargon - user-friendly language
+   - Preferences stored in sessionStorage (no URL bloat), survives page refresh
 5. **Details** (`/cars/[id]`) - Full car specifications
 
 **Key Features:**
 - **No explicit filters** - users answer lifestyle questions instead
-- **GPT-4o decides weights** - automatic preference extraction
+- **GPT decides weights** - automatic preference extraction (model configurable via env)
 - **7 scoring dimensions**: Price Fit, Fuel, Vehicle Type, Safety, Technology, Space, Performance
+- **Server-side validation** - Zod schema validates all API inputs; invalid payloads get 400
+- **Normalized feature keys** - CSV column names are snake_cased for consistent scoring
+- **Telemetry** - structured JSON logs with request IDs on every API route
+- **Resilient OpenAI** - configurable timeout/retries, robust JSON parsing, caching
 - JSON-driven quiz config (easy to add/modify questions)
 - React Hook Form for quiz state management
 - TanStack Query for data fetching
@@ -388,34 +393,41 @@ pnpm dev
 
 ### Environment variables
 
-Create `.env.local` (Vercel will use project envs):
+Copy `.env.example` → `.env.local` and fill in values:
 
 ```bash
-# Database
-DATABASE_URL=postgresql://user:password@host:5432/db
-DIRECT_URL=postgresql://user:password@host:5432/db
-
-# Auth (NextAuth – email magic link)
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=your-32byte-secret
-EMAIL_SERVER=smtp://user:pass@smtp.host:587
-EMAIL_FROM=hello@yourdomain.com
-# or RESEND_API_KEY=...
-
-# OpenAI
-OPENAI_API_KEY=sk-...
-
-# Redis (Upstash)
-UPSTASH_REDIS_REST_URL=https://...upstash.io
-UPSTASH_REDIS_REST_TOKEN=...
-
-# Monitoring & Analytics
-SENTRY_DSN=...
-POSTHOG_PUBLIC_KEY=...
-POSTHOG_HOST=https://us.i.posthog.com
-# Logs
-BETTERSTACK_SOURCE_TOKEN=... # or LOGTAIL_SOURCE_TOKEN=...
+cp .env.example .env.local
 ```
+
+Key variables (see `.env.example` for full list with comments):
+
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | Yes | PostgreSQL connection string |
+| `OPENAI_API_KEY` | Yes | OpenAI API key |
+| `OPENAI_TIMEOUT_MS` | No | Request timeout (default 20000) |
+| `OPENAI_MAX_RETRIES` | No | Retry count (default 2) |
+| `OPENAI_MODEL_QUIZ` | No | Model for quiz analysis (default `gpt-4o-mini`) |
+| `OPENAI_MODEL_PREF_EXTRACT` | No | Model for preference extraction (default `gpt-4o-mini`) |
+| `OPENAI_MODEL_COMPROMISES` | No | Model for compromise explanations (default `gpt-4o`) |
+| `UPSTASH_REDIS_REST_URL` | No | Upstash Redis URL (caching) |
+| `UPSTASH_REDIS_REST_TOKEN` | No | Upstash Redis token |
+| `CACHE_TTL_SECONDS` | No | Search cache TTL (default 86400) |
+| `QUIZ_CACHE_TTL_SECONDS` | No | Quiz cache TTL (default 21600) |
+| `PRISMA_LOG_QUERIES` | No | Log SQL queries (default false) |
+
+#### Serverless / connection pooling
+
+When deploying to Vercel or other serverless platforms, use a pooled connection string to avoid exhausting database connections:
+
+```bash
+# Pooled (for application queries)
+DATABASE_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME?pgbouncer=true&connection_limit=1
+# Non-pooled (for Prisma migrations)
+DIRECT_URL=postgresql://USER:PASSWORD@HOST:5432/DBNAME
+```
+
+Neon and Supabase both provide separate pooled/direct URLs in their dashboards.
 
 ---
 

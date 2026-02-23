@@ -1,5 +1,7 @@
 import type { Preferences, ScoredCarResult, Contribution, FuelKind } from '../types/preferences';
 import type { Car } from '@prisma/client';
+import { normalizeFeatureMap } from '../utils/normalizeFeatureKey';
+import { CRITERIA_CATEGORIES } from '../config/criteria';
 
 function clamp01(v: number): number {
   if (Number.isNaN(v)) return 0;
@@ -54,107 +56,93 @@ function vehicleTypeMatch(car: Car, allowed?: string[]): number {
   return allowed.includes(car.vehicleType) ? 1 : 0;
 }
 
-function computeSafetyScore(car: Car): number {
-  const features = (car.features as Record<string, any>) || {};
-  let score = 0.5; // baseline
-
-  // Check for safety-related features in the features JSON
-  const safetyFeatures = [
-    'airbags',
-    'abs',
-    'stability_control',
-    'traction_control',
-    'blind_spot',
-    'lane_departure',
-    'collision_warning',
-    'automatic_braking',
-    'adaptive_cruise',
-    'backup_camera',
-    'parking_sensors',
-  ];
-
-  let foundFeatures = 0;
-  safetyFeatures.forEach((feature) => {
-    if (features[feature] === true || features[feature] === 1) {
-      foundFeatures++;
-    }
-  });
-
-  // Boost score based on found features
-  score += (foundFeatures / safetyFeatures.length) * 0.5;
-  return clamp01(score);
+function featureScore(features: Record<string, unknown>, keys: string[]): number {
+  let found = 0;
+  for (const key of keys) {
+    const v = features[key];
+    if (v === true || v === 1) found++;
+  }
+  return found / keys.length;
 }
 
-function computeTechnologyScore(car: Car): number {
-  const features = (car.features as Record<string, any>) || {};
-  let score = 0.5;
+const SAFETY_FEATURES = [
+  'airbags', 'abs', 'stability_control', 'traction_control',
+  'blind_spot', 'lane_departure', 'collision_warning', 'automatic_braking',
+  'adaptive_cruise', 'backup_camera', 'parking_sensors',
+  'ncap', 'backseat_isofix', 'infotainment_parking_cam',
+  'visibility_side_mirrors', 'visibility_irvm_back', 'visibility_pillars',
+  'backseat_seat_belts_pos',
+];
 
-  const techFeatures = [
-    'touchscreen',
-    'navigation',
-    'bluetooth',
-    'apple_carplay',
-    'android_auto',
-    'wifi',
-    'wireless_charging',
-    'digital_dash',
-    'heads_up_display',
-    'remote_start',
-    'keyless_entry',
-  ];
+const TECH_FEATURES = [
+  'touchscreen', 'navigation', 'bluetooth', 'apple_carplay', 'android_auto',
+  'wifi', 'wireless_charging', 'digital_dash', 'heads_up_display',
+  'remote_start', 'keyless_entry',
+  'driver_s_display_easy', 'driver_s_display_bright',
+  'infotainment_responsive', 'infotainment_bright',
+  'infotainment_a_c_control', 'infotainment_vol_control',
+  'charging_ports',
+];
 
-  let foundFeatures = 0;
-  techFeatures.forEach((feature) => {
-    if (features[feature] === true || features[feature] === 1) {
-      foundFeatures++;
-    }
-  });
+const SPACE_FEATURES = [
+  'third_row', 'cargo_space', 'roof_rack',
+  'backseat_headroom', 'backseat_kneeroom', 'backseat_incline',
+  'backseat_deep_footwell', 'backseat_flat_floor',
+  'boot_lip', 'flat_boot', 'easily_foldable_seats', 'load_cover_fits_inside',
+  'centre_cubby', 'doorbins_front', 'doorbins_back',
+  'cup_holder', 'glovebox', 'seatback_pocket', 'sunglass_storage',
+];
 
-  score += (foundFeatures / techFeatures.length) * 0.5;
-  return clamp01(score);
+const PERFORMANCE_FEATURES = [
+  'turbo', 'supercharged', 'awd', '4wd',
+  'acceleration', 'brake', 'handling', 'suspension', 'body_roll',
+  'engine_noise', 'eco',
+];
+
+function computeSafetyScore(features: Record<string, unknown>): number {
+  return clamp01(0.5 + featureScore(features, SAFETY_FEATURES) * 0.5);
 }
 
-function computeSpaceScore(car: Car): number {
-  const features = (car.features as Record<string, any>) || {};
+function computeTechnologyScore(features: Record<string, unknown>): number {
+  return clamp01(0.5 + featureScore(features, TECH_FEATURES) * 0.5);
+}
+
+function computeSpaceScore(car: Car, features: Record<string, unknown>): number {
   let score = 0.5;
 
-  // Larger vehicles generally have more space
   if (car.vehicleType) {
     const type = car.vehicleType.toLowerCase();
     if (type.includes('suv') || type.includes('van') || type.includes('truck')) {
-      score += 0.3;
+      score += 0.15;
     } else if (type.includes('sedan') || type.includes('wagon')) {
-      score += 0.1;
+      score += 0.05;
     }
   }
 
-  // Check for space-related features
-  if (features.third_row || features.seating_capacity >= 7) score += 0.2;
-  if (features.cargo_space || features.roof_rack) score += 0.1;
+  const seating = features.seating_capacity;
+  if (typeof seating === 'number' && seating >= 7) score += 0.1;
 
+  score += featureScore(features, SPACE_FEATURES) * 0.35;
   return clamp01(score);
 }
 
-function computePerformanceScore(car: Car): number {
-  const features = (car.features as Record<string, any>) || {};
+function computePerformanceScore(car: Car, features: Record<string, unknown>): number {
   let score = 0.5;
 
-  // Performance indicators
   if (features.horsepower) {
     const hp = Number(features.horsepower);
-    if (hp > 300) score += 0.3;
-    else if (hp > 200) score += 0.2;
+    if (hp > 300) score += 0.2;
+    else if (hp > 200) score += 0.15;
     else if (hp > 150) score += 0.1;
   }
 
-  if (features.turbo || features.supercharged) score += 0.1;
-  if (features.awd || features['4wd']) score += 0.1;
-  if (car.transmission && car.transmission.toLowerCase().includes('manual')) score += 0.1;
+  if (car.transmission && car.transmission.toLowerCase().includes('manual')) score += 0.05;
 
+  score += featureScore(features, PERFORMANCE_FEATURES) * 0.3;
   return clamp01(score);
 }
 
-function normalizeWeights(weights: Record<string, number | undefined>, fallback = 1): Record<string, number> {
+function normalizeWeights(weights: Record<string, number | undefined>): Record<string, number> {
   const entries = Object.entries(weights).map(([k, v]) => [k, v == null ? 0 : Math.max(0, v)] as const);
   const total = entries.reduce((s, [, v]) => s + v, 0);
   if (total <= 0) {
@@ -165,8 +153,25 @@ function normalizeWeights(weights: Record<string, number | undefined>, fallback 
   return Object.fromEntries(entries.map(([k, v]) => [k, v / total])) as Record<string, number>;
 }
 
+function deriveWeightsFromCriteria(ci: Record<string, number>): Record<string, number> {
+  function avg(keys: readonly string[]): number {
+    const vals = keys.map((k) => ci[k]).filter((v) => v != null);
+    if (vals.length === 0) return 0.5;
+    return vals.reduce((s, v) => s + v, 0) / vals.length;
+  }
+  return {
+    priceFit: 1,
+    fuel: Math.max(0.1, ci.eco ?? 0.15),
+    vehicleType: 1,
+    safety: Math.max(0.1, avg(CRITERIA_CATEGORIES.safety)),
+    technology: Math.max(0.1, avg(CRITERIA_CATEGORIES.technology)),
+    space: Math.max(0.1, avg(CRITERIA_CATEGORIES.space)),
+    performance: Math.max(0.1, avg(CRITERIA_CATEGORIES.performance)),
+  };
+}
+
 export function scoreCars(cars: Car[], prefs: Preferences): ScoredCarResult[] {
-  const w = normalizeWeights({
+  let rawWeights: Record<string, number | undefined> = {
     priceFit: prefs.weights?.priceFit,
     fuel: prefs.weights?.fuel,
     vehicleType: prefs.weights?.vehicleType,
@@ -174,16 +179,34 @@ export function scoreCars(cars: Car[], prefs: Preferences): ScoredCarResult[] {
     technology: prefs.weights?.technology,
     space: prefs.weights?.space,
     performance: prefs.weights?.performance,
-  });
+  };
+
+  if (prefs.criteriaImportance && Object.keys(prefs.criteriaImportance).length > 0) {
+    const derived = deriveWeightsFromCriteria(prefs.criteriaImportance);
+    rawWeights = {
+      priceFit: prefs.weights?.priceFit ?? derived.priceFit,
+      fuel: prefs.weights?.fuel ?? derived.fuel,
+      vehicleType: prefs.weights?.vehicleType ?? derived.vehicleType,
+      safety: prefs.weights?.safety ?? derived.safety,
+      technology: prefs.weights?.technology ?? derived.technology,
+      space: prefs.weights?.space ?? derived.space,
+      performance: prefs.weights?.performance ?? derived.performance,
+    };
+  }
+
+  const w = normalizeWeights(rawWeights);
 
   const results: ScoredCarResult[] = cars.map((car) => {
+    const rawFeatures = (car.features as Record<string, unknown>) || {};
+    const featuresN = normalizeFeatureMap(rawFeatures);
+
     const priceScore = computePriceFit(car, prefs.hardFilters?.price);
     const fuelScore = fuelMatch(car, prefs.hardFilters?.fuelType);
     const vtScore = vehicleTypeMatch(car, prefs.hardFilters?.vehicleType);
-    const safetyScore = computeSafetyScore(car);
-    const techScore = computeTechnologyScore(car);
-    const spaceScore = computeSpaceScore(car);
-    const perfScore = computePerformanceScore(car);
+    const safetyScore = computeSafetyScore(featuresN);
+    const techScore = computeTechnologyScore(featuresN);
+    const spaceScore = computeSpaceScore(car, featuresN);
+    const perfScore = computePerformanceScore(car, featuresN);
 
     const contributions: Contribution = {
       priceFit: priceScore * w.priceFit,

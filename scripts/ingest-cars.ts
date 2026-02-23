@@ -38,6 +38,16 @@ function normalizeKey(key: string): string {
     .trim();
 }
 
+function toSnakeCase(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/['']/g, '_')
+    .replace(/[/:,&]+/g, '_')
+    .replace(/[^a-z0-9_]+/g, '_')
+    .replace(/_+/g, '_')
+    .replace(/^_|_$/g, '');
+}
+
 async function main() {
   const inputPathArg = process.argv[2] ?? "data/Cars_Nov_4_2025.csv";
   const inputPath = path.resolve(process.cwd(), inputPathArg);
@@ -107,22 +117,23 @@ async function main() {
     const features: Record<string, Prisma.InputJsonValue | null> = {};
     for (const [key, val] of Object.entries(record)) {
       if (handled.has(key)) continue;
+      const snakeKey = toSnakeCase(key);
       const text = typeof val === 'string' ? val.trim() : '';
       if (text === '') {
-        features[key] = null;
+        features[snakeKey] = null;
         continue;
       }
       const asBool = parseBoolean(text);
       if (asBool !== null) {
-        features[key] = asBool;
+        features[snakeKey] = asBool;
         continue;
       }
       const asNum = Number(text.replace(/,/g, ''));
       if (!Number.isNaN(asNum) && text !== '') {
-        features[key] = asNum;
+        features[snakeKey] = asNum;
         continue;
       }
-      features[key] = text;
+      features[snakeKey] = text;
     }
 
     await prisma.car.upsert({

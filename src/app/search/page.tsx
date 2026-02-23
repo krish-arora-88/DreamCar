@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
+import { saveSearchState } from '@/lib/clientPrefs';
 
 export default function SearchPage() {
   const router = useRouter();
@@ -49,8 +50,8 @@ export default function SearchPage() {
       topN: 20,
     };
 
-    const params = new URLSearchParams({ prefs: JSON.stringify(prefs) });
-    router.push(`/results?${params.toString()}`);
+    saveSearchState({ prefs });
+    router.push('/results');
   };
 
   return (
@@ -68,7 +69,6 @@ export default function SearchPage() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-              {/* Price Range */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Price Range</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -85,7 +85,6 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              {/* Year Range */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Model Year</h3>
                 <div className="grid grid-cols-2 gap-4">
@@ -102,28 +101,24 @@ export default function SearchPage() {
                 </div>
               </div>
 
-              {/* Vehicle Types */}
               <div className="space-y-2">
                 <Label htmlFor="vehicleTypes">Vehicle Types (comma-separated)</Label>
                 <Input id="vehicleTypes" placeholder="SUV, Sedan, Truck" {...register('vehicleTypes')} />
                 <p className="text-xs text-muted-foreground">Leave empty for all types</p>
               </div>
 
-              {/* Fuel Types */}
               <div className="space-y-2">
                 <Label htmlFor="fuelTypes">Fuel Types (comma-separated)</Label>
                 <Input id="fuelTypes" placeholder="hybrid, ev" {...register('fuelTypes')} />
                 <p className="text-xs text-muted-foreground">Options: gas, hybrid, phev, ev</p>
               </div>
 
-              {/* Brands */}
               <div className="space-y-2">
                 <Label htmlFor="brands">Brands (comma-separated)</Label>
                 <Input id="brands" placeholder="Toyota, Tesla, Honda" {...register('brands')} />
                 <p className="text-xs text-muted-foreground">Leave empty for all brands</p>
               </div>
 
-              {/* Weights */}
               <div className="space-y-4">
                 <h3 className="text-lg font-semibold">Importance Weights (0-10)</h3>
                 <div className="grid grid-cols-3 gap-4">
@@ -159,4 +154,3 @@ export default function SearchPage() {
     </main>
   );
 }
-
