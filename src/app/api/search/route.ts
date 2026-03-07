@@ -82,6 +82,9 @@ async function handler(req: Request): Promise<Response> {
   const fuelAllowed = prefs.hardFilters?.fuelType ?? [];
   const filtered = cars.filter((c) => {
     if (fuelAllowed.length === 0) return true;
+    // If the car has no fuel data at all, include it rather than excluding
+    const hasFuelData = c.gas === true || c.hybrid === true || c.phev === true || c.ev === true;
+    if (!hasFuelData) return true;
     return (
       (fuelAllowed.includes('gas') && c.gas === true) ||
       (fuelAllowed.includes('hybrid') && c.hybrid === true) ||
