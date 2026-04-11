@@ -35,111 +35,73 @@ function computePriceFit(car: Car, price?: { min?: number; max?: number }): numb
   return 0.5;
 }
 
-function hasAnyFuel(car: Car, allowed: FuelKind[]): boolean {
-  if (allowed.length === 0) return true;
-  return (
+function fuelMatch(car: Car, allowed?: FuelKind[]): number {
+  if (!allowed || allowed.length === 0) return 0.5;
+  const hasAny =
     (allowed.includes('gas') && car.gas === true) ||
     (allowed.includes('hybrid') && car.hybrid === true) ||
     (allowed.includes('phev') && car.phev === true) ||
-    (allowed.includes('ev') && car.ev === true)
-  );
+    (allowed.includes('ev') && car.ev === true);
+  return hasAny ? 1 : 0;
 }
 
-function fuelMatch(car: Car, allowed?: FuelKind[]): number {
-  if (!allowed || allowed.length === 0) return 0.5;
-  return hasAnyFuel(car, allowed) ? 1 : 0;
-}
-
-function vehicleTypeMatch(car: Car, allowed?: string[]): number {
-  if (!allowed || allowed.length === 0) return 0.5;
-  if (car.vehicleType == null) return 0.5;
-  return allowed.includes(car.vehicleType) ? 1 : 0;
-}
-
-function featureScore(features: Record<string, unknown>, keys: string[]): number {
-  let found = 0;
+/**
+ * Score a car against a set of criteria keys, weighted by the user's importance scores.
+ *
+ * Feature values are interpreted as:
+ *   true / 1     → 1.0 (feature confirmed present)
+ *   false / 0    → 0.0 (feature confirmed absent)
+ *   missing/null → 0.5 (no data — neutral, neither helps nor hurts)
+ *
+ * When ci is empty (legacy path), falls back to equal weights of 0.15 per criterion.
+ */
+function weightedCriteriaScore(
+  features: Record<string, unknown>,
+  keys: readonly string[],
+  ci: Record<string, number>,
+): number {
+  let weightedSum = 0;
+  let totalWeight = 0;
   for (const key of keys) {
-    const v = features[key];
-    if (v === true || v === 1) found++;
+    const importance = ci[key] ?? 0.15;
+    const raw = features[key];
+    const score =
+      raw === true || raw === 1 ? 1 :
+      raw === false || raw === 0 ? 0 :
+      0.5;
+    weightedSum += importance * score;
+    totalWeight += importance;
   }
-  return found / keys.length;
+  return totalWeight > 0 ? weightedSum / totalWeight : 0.5;
 }
 
-const SAFETY_FEATURES = [
-  'airbags', 'abs', 'stability_control', 'traction_control',
-  'blind_spot', 'lane_departure', 'collision_warning', 'automatic_braking',
-  'adaptive_cruise', 'backup_camera', 'parking_sensors',
-  'ncap', 'backseat_isofix', 'infotainment_parking_cam',
-  'visibility_side_mirrors', 'visibility_irvm_back', 'visibility_pillars',
-  'backseat_seat_belts_pos',
-];
-
-const TECH_FEATURES = [
-  'touchscreen', 'navigation', 'bluetooth', 'apple_carplay', 'android_auto',
-  'wifi', 'wireless_charging', 'digital_dash', 'heads_up_display',
-  'remote_start', 'keyless_entry',
-  'driver_s_display_easy', 'driver_s_display_bright',
-  'infotainment_responsive', 'infotainment_bright',
-  'infotainment_a_c_control', 'infotainment_vol_control',
-  'charging_ports',
-];
-
-const SPACE_FEATURES = [
-  'third_row', 'cargo_space', 'roof_rack',
-  'backseat_headroom', 'backseat_kneeroom', 'backseat_incline',
-  'backseat_deep_footwell', 'backseat_flat_floor',
-  'boot_lip', 'flat_boot', 'easily_foldable_seats', 'load_cover_fits_inside',
-  'centre_cubby', 'doorbins_front', 'doorbins_back',
-  'cup_holder', 'glovebox', 'seatback_pocket', 'sunglass_storage',
-];
-
-const PERFORMANCE_FEATURES = [
-  'turbo', 'supercharged', 'awd', '4wd',
-  'acceleration', 'brake', 'handling', 'suspension', 'body_roll',
-  'engine_noise', 'eco',
-];
-
-function computeSafetyScore(features: Record<string, unknown>): number {
-  return clamp01(0.5 + featureScore(features, SAFETY_FEATURES) * 0.5);
-}
-
-function computeTechnologyScore(features: Record<string, unknown>): number {
-  return clamp01(0.5 + featureScore(features, TECH_FEATURES) * 0.5);
-}
-
-function computeSpaceScore(car: Car, features: Record<string, unknown>): number {
-  let score = 0.5;
-
-  if (car.vehicleType) {
-    const type = car.vehicleType.toLowerCase();
-    if (type.includes('suv') || type.includes('van') || type.includes('truck')) {
-      score += 0.15;
-    } else if (type.includes('sedan') || type.includes('wagon')) {
-      score += 0.05;
+/**
+ * Returns a multiplier in (0, 1] penalising cars that are confirmed missing
+ * a feature the user marked as must-have (importance ≥ 0.85).
+ *
+ * Each failed must-have multiplies the score by 0.85 (15 % penalty).
+ * Missing data (undefined) is not penalised — only explicit false/0.
+ */
+function computeMustHavePenalty(
+  features: Record<string, unknown>,
+  ci: Record<string, number>,
+): number {
+  let penalty = 1.0;
+  for (const [key, importance] of Object.entries(ci)) {
+    if (importance >= 0.85) {
+      const raw = features[key];
+      if (raw === false || raw === 0) {
+        penalty *= 0.85;
+      }
     }
   }
-
-  const seating = features.seating_capacity;
-  if (typeof seating === 'number' && seating >= 7) score += 0.1;
-
-  score += featureScore(features, SPACE_FEATURES) * 0.35;
-  return clamp01(score);
+  return penalty;
 }
 
-function computePerformanceScore(car: Car, features: Record<string, unknown>): number {
-  let score = 0.5;
-
-  if (features.horsepower) {
-    const hp = Number(features.horsepower);
-    if (hp > 300) score += 0.2;
-    else if (hp > 200) score += 0.15;
-    else if (hp > 150) score += 0.1;
-  }
-
-  if (car.transmission && car.transmission.toLowerCase().includes('manual')) score += 0.05;
-
-  score += featureScore(features, PERFORMANCE_FEATURES) * 0.3;
-  return clamp01(score);
+function avgImportance(ci: Record<string, number>, keys: readonly string[]): number {
+  const vals = keys.map((k) => ci[k]).filter((v) => v != null);
+  if (vals.length === 0) return 0.5;
+  return vals.reduce((s, v) => s + v, 0) / vals.length;
 }
 
 function normalizeWeights(weights: Record<string, number | undefined>): Record<string, number> {
@@ -153,79 +115,76 @@ function normalizeWeights(weights: Record<string, number | undefined>): Record<s
   return Object.fromEntries(entries.map(([k, v]) => [k, v / total])) as Record<string, number>;
 }
 
-function deriveWeightsFromCriteria(ci: Record<string, number>): Record<string, number> {
-  function avg(keys: readonly string[]): number {
-    const vals = keys.map((k) => ci[k]).filter((v) => v != null);
-    if (vals.length === 0) return 0.5;
-    return vals.reduce((s, v) => s + v, 0) / vals.length;
-  }
-  return {
-    priceFit: 1,
-    fuel: Math.max(0.1, ci.eco ?? 0.15),
-    vehicleType: 1,
-    safety: Math.max(0.1, avg(CRITERIA_CATEGORIES.safety)),
-    technology: Math.max(0.1, avg(CRITERIA_CATEGORIES.technology)),
-    space: Math.max(0.1, avg(CRITERIA_CATEGORIES.space)),
-    performance: Math.max(0.1, avg(CRITERIA_CATEGORIES.performance)),
-  };
-}
-
 export function scoreCars(cars: Car[], prefs: Preferences): ScoredCarResult[] {
-  let rawWeights: Record<string, number | undefined> = {
-    priceFit: prefs.weights?.priceFit,
-    fuel: prefs.weights?.fuel,
-    vehicleType: prefs.weights?.vehicleType,
-    safety: prefs.weights?.safety,
-    technology: prefs.weights?.technology,
-    space: prefs.weights?.space,
-    performance: prefs.weights?.performance,
-  };
-
-  if (prefs.criteriaImportance && Object.keys(prefs.criteriaImportance).length > 0) {
-    const derived = deriveWeightsFromCriteria(prefs.criteriaImportance);
-    rawWeights = {
-      priceFit: prefs.weights?.priceFit ?? derived.priceFit,
-      fuel: prefs.weights?.fuel ?? derived.fuel,
-      vehicleType: prefs.weights?.vehicleType ?? derived.vehicleType,
-      safety: prefs.weights?.safety ?? derived.safety,
-      technology: prefs.weights?.technology ?? derived.technology,
-      space: prefs.weights?.space ?? derived.space,
-      performance: prefs.weights?.performance ?? derived.performance,
-    };
-  }
-
-  const w = normalizeWeights(rawWeights);
+  const hasCriteria = !!(prefs.criteriaImportance && Object.keys(prefs.criteriaImportance).length > 0);
+  // ci is the per-criterion importance map; empty object for legacy (no-quiz) path
+  const ci: Record<string, number> = hasCriteria ? prefs.criteriaImportance! : {};
 
   const results: ScoredCarResult[] = cars.map((car) => {
     const rawFeatures = (car.features as Record<string, unknown>) || {};
     const featuresN = normalizeFeatureMap(rawFeatures);
 
+    // ── Per-dimension scores ──────────────────────────────────────────────
     const priceScore = computePriceFit(car, prefs.hardFilters?.price);
     const fuelScore = fuelMatch(car, prefs.hardFilters?.fuelType);
-    const vtScore = vehicleTypeMatch(car, prefs.hardFilters?.vehicleType);
-    const safetyScore = computeSafetyScore(featuresN);
-    const techScore = computeTechnologyScore(featuresN);
-    const spaceScore = computeSpaceScore(car, featuresN);
-    const perfScore = computePerformanceScore(car, featuresN);
+
+    // Category scores: directly weighted by the user's per-criterion importance.
+    // This closes the gap between "what the user said matters" and "what is scored."
+    // vehicleType is excluded — it is already enforced as a hard SQL filter.
+    const safetyScore = weightedCriteriaScore(featuresN, CRITERIA_CATEGORIES.safety, ci);
+    const techScore = weightedCriteriaScore(featuresN, CRITERIA_CATEGORIES.technology, ci);
+    const spaceScore = weightedCriteriaScore(featuresN, CRITERIA_CATEGORIES.space, ci);
+    const perfScore = weightedCriteriaScore(featuresN, CRITERIA_CATEGORIES.performance, ci);
+
+    // ── Category weights ──────────────────────────────────────────────────
+    // When criteriaImportance is present, category weights are derived from the
+    // average importance of criteria within each category (matching the scoring).
+    // vehicleType is intentionally absent — hard filter makes it non-differentiating.
+    const rawWeights: Record<string, number | undefined> = hasCriteria
+      ? {
+          priceFit:    prefs.weights?.priceFit    ?? 1.0,
+          fuel:        prefs.weights?.fuel        ?? Math.max(0.1, ci['eco'] ?? 0.15),
+          safety:      prefs.weights?.safety      ?? Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.safety)),
+          technology:  prefs.weights?.technology  ?? Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.technology)),
+          space:       prefs.weights?.space       ?? Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.space)),
+          performance: prefs.weights?.performance ?? Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.performance)),
+        }
+      : {
+          // Legacy path (direct API, no quiz): use provided weights exactly.
+          // Unspecified categories default to undefined → 0, so the caller controls
+          // the full weight profile. normalizeWeights falls back to equal weights
+          // when all values are 0/undefined.
+          priceFit:    prefs.weights?.priceFit,
+          fuel:        prefs.weights?.fuel,
+          safety:      prefs.weights?.safety,
+          technology:  prefs.weights?.technology,
+          space:       prefs.weights?.space,
+          performance: prefs.weights?.performance,
+        };
+
+    const w = normalizeWeights(rawWeights);
 
     const contributions: Contribution = {
-      priceFit: priceScore * w.priceFit,
-      fuel: fuelScore * w.fuel,
-      vehicleType: vtScore * w.vehicleType,
-      safety: safetyScore * w.safety,
-      technology: techScore * w.technology,
-      space: spaceScore * w.space,
-      performance: perfScore * w.performance,
+      priceFit:    priceScore  * (w.priceFit    ?? 0),
+      fuel:        fuelScore   * (w.fuel        ?? 0),
+      safety:      safetyScore * (w.safety      ?? 0),
+      technology:  techScore   * (w.technology  ?? 0),
+      space:       spaceScore  * (w.space       ?? 0),
+      performance: perfScore   * (w.performance ?? 0),
     };
 
-    const overall =
-      (contributions.priceFit ?? 0) +
-      (contributions.fuel ?? 0) +
-      (contributions.vehicleType ?? 0) +
-      (contributions.safety ?? 0) +
-      (contributions.technology ?? 0) +
-      (contributions.space ?? 0) +
+    const rawOverall =
+      (contributions.priceFit    ?? 0) +
+      (contributions.fuel        ?? 0) +
+      (contributions.safety      ?? 0) +
+      (contributions.technology  ?? 0) +
+      (contributions.space       ?? 0) +
       (contributions.performance ?? 0);
+
+    // Apply must-have penalty: cars confirmed missing a feature the user rated
+    // as critical (≥ 0.85 importance) are penalised 15 % per failed must-have.
+    const penalty = hasCriteria ? computeMustHavePenalty(featuresN, ci) : 1.0;
+    const overall = rawOverall * penalty;
 
     return {
       carId: car.id,

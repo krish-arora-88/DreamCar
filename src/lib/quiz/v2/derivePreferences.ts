@@ -331,7 +331,7 @@ export function derivePreferences(answers: QuizV2Answers): DerivedPreferences {
   const weights: DerivedPreferences['weights'] = {
     priceFit: 1,
     fuel: Math.max(0.1, ci.eco),
-    vehicleType: 1,
+    vehicleType: 0, // enforced as a hard SQL filter, not a score weight
     safety: Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.safety)),
     technology: Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.technology)),
     space: Math.max(0.1, avgImportance(ci, CRITERIA_CATEGORIES.space)),
